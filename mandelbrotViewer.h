@@ -1,6 +1,8 @@
 #ifndef MANDELBROTVIEWER_H
 #define MANDELBROTVIEWER_H
 
+#define THREAD_COUNT    4
+
 #include <SFML/Graphics.hpp>
 #include <vector>
 
