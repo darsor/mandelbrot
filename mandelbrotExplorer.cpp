@@ -31,7 +31,24 @@ void zoom() {
     }
 }
 
-int main() {
+int main(int argc, char **argv) {
+    if (argc > 2) {
+        std::cout << "Doing a fixed test - remember to time!" << std::endl;
+        std::cout << "Also remember to call like: " << argv[0] << " <#iterations> <zoom factor>" << std::endl;
+        MandelbrotViewer brot(1024);
+        brot.resetMandelbrot();
+        brot.setIterations(atoi(argv[1]));
+        sf::Vector2<double> new_pos;
+        new_pos.x = 0.013438870532012129028364919004019686867528573314565492885548699;
+        new_pos.y = 0.655614218769465062251320027664617466691295975864786403994151735;
+        double zoom = atof(argv[2]);
+        brot.changePos(new_pos, zoom);
+        brot.generate();
+        brot.updateMandelbrot();
+        brot.saveImage();
+        return 0;
+    }
+
     int resolution = 720;
     int iterations = 100;
     int framerateLimit;
@@ -149,6 +166,47 @@ int main() {
                         case sf::Keyboard::S:
                             brot.saveImage();
                             break;
+		    case sf::Keyboard::M:
+	    case sf::Keyboard::N:
+		  {
+                    //set the zoom frames up so that it is more animated
+                    param.frames = 30;
+                    old_center = brot.getViewCenter();
+                    new_center.x = old_center.x;//event.mouseWheelScroll.x;
+                    new_center.y = old_center.y;//event.mouseWheelScroll.y;
+
+                    //if it's an upward scroll, get ready to zoom in
+                    //if (event.mouseWheelScroll.delta > 0) {
+		    if (event.key.code == sf::Keyboard::M) {
+                        brot.changePos(brot.pixelToComplex(new_center), 0.5);
+                        param.zoom = 0.5;
+                    } //if it's a downward scroll, get ready to zoom out
+                    else {
+                        brot.changePos(brot.pixelToComplex(new_center), 2.0);
+                        param.zoom = 2.0;
+                    }
+
+                    //set the parameters for the zoom
+                    param.oldc = old_center;
+                    param.newc = new_center;
+
+                    //start zooming with a worker thread, so that it can generate
+                    //the new image while it's zooming
+                    sf::Thread thread(&zoom);
+                    thread.launch();
+                    
+                    //start generating while it's zooming
+                    brot.generate();
+
+                    //wait for the thread to finish (wait for the zoom to finish)
+                    thread.wait();
+
+                    //now display the new mandelbrot
+                    brot.updateMandelbrot();
+                    brot.resetView();
+                    brot.refreshWindow();
+                    break; 
+                }
                         //end the keypress switch
                         default:
                             break;
@@ -159,12 +217,16 @@ int main() {
                 //if the event is a mousewheel scroll, zoom in with the
                 //mouse coordinates as the new center
                 //NOTE: this has to have brackets because it is declaring new variables
-                case sf::Event::MouseWheelScrolled: {
+#if 0
+		    //                case sf::Event::MouseWheelScrolled:
+	    case sf::Event::Keyboard::M:
+	    case sf::Event::Keyboard::N:
+		  {
                     //set the zoom frames up so that it is more animated
                     param.frames = 30;
                     old_center = brot.getViewCenter();
-                    new_center.x = event.mouseWheelScroll.x;
-                    new_center.y = event.mouseWheelScroll.y;
+                    //new_center.x = event.mouseWheelScroll.x;
+                    //new_center.y = event.mouseWheelScroll.y;
 
                     //if it's an upward scroll, get ready to zoom in
                     if (event.mouseWheelScroll.delta > 0) {
@@ -197,6 +259,7 @@ int main() {
                     brot.refreshWindow();
                     break; 
                 }
+#endif
 
                 //if the event is a click, drag the view:
                 case sf::Event::MouseButtonPressed:
