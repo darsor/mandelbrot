@@ -122,6 +122,8 @@ void MandelbrotViewer::generate() {
     thread2.wait();
     thread3.wait();
     thread4.wait();
+
+    last_max_iter = max_iter;
 }
 
 //this is a private worker thread function. Each thread picks the next ungenerated
@@ -165,7 +167,6 @@ void MandelbrotViewer::genLine() {
         for (column = 0; column < resolution; column++) {
 #endif
 
-            
             //check if we already know that that point escapes.
             //if it's regenerating after a max_iter change, this saves
             //a lot of time. It's disabled for now (TODO)
@@ -189,6 +190,25 @@ void MandelbrotViewer::genLine() {
 #else
             lineIters[column] = iter;
             lineColors[column] = findColor(iter);
+
+            // Check if we increased iterations and if the pixel already diverged
+            if ( last_max_iter < max_iter && image_array[row][column] < last_max_iter ) {
+                iter = image_array[row][column];
+            } // Check if we decreased iterations and if the pixel already converged
+            else if ( last_max_iter > max_iter && image_array[row][column] > max_iter) {
+                iter = image_array[row][column];
+            } // Check if we zoomed, or didn't change iterations which means we need to recalculate the whole thing
+            else {
+                //calculate the next x coordinate of the complex plane
+                x = area.left + column * x_inc;
+                iter = escape(x, y);
+            }
+
+            //mutex this too so that the image is not accessed multiple times simultaneously
+            /*mutex2.lock();
+            image.setPixel(column, row, findColor(iter));
+            image_array[row][column] = iter;
+            mutex2.unlock();*/
 #endif
         }
 		mutex2.lock();
@@ -209,6 +229,7 @@ void MandelbrotViewer::resetMandelbrot() {
     area.width = 2;
     area.height = 2;
     max_iter = 100;
+    last_max_iter = 100;
     color_multiple = 1;
 }
 
@@ -358,14 +379,12 @@ void MandelbrotViewer::initPalette() {
         smoosh(sf::Color::Blue, sf::Color::White, 64, 144);
         smoosh(sf::Color::White, orange, 144, 196);
         smoosh(orange, sf::Color::Black, 196, 256);
-    //scheme two is black:green:blue:black
     } else if (scheme == 2) {
         smoosh(sf::Color::Black, sf::Color::Green, 0, 85);
         smoosh(sf::Color::Green, sf::Color::Blue, 85, 170);
         smoosh(sf::Color::Blue, sf::Color::Black, 170, 256);
-    //scheme three is black:red:black
     } else if (scheme == 3) {
-        smoosh(sf::Color::Black, sf::Color::Red, 0, 200);
+        smoosh(sf::Color::Red, sf::Color::Red, 0, 200);
         smoosh(sf::Color::Red, sf::Color::Black, 200, 256);
     } else {
         int r, g, b;

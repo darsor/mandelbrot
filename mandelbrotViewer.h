@@ -32,7 +32,7 @@ class MandelbrotViewer {
         bool isOpen();
         
         //Setter functions:
-        void setIterations(int iter) {max_iter = iter;}
+        void setIterations(int iter) {last_max_iter = max_iter; max_iter = iter;}
         void setColorMultiple(double mult) {color_multiple = mult;}
         void setFramerate(int rate) {framerateLimit = rate;}
         void setColorScheme(int newScheme) {scheme = newScheme; initPalette();}
@@ -88,6 +88,7 @@ class MandelbrotViewer {
         //maximum number of iterations to check for. Higher values are slower,
         //but more precise
         int max_iter;
+        int last_max_iter;
 
         //Functions:
         
