@@ -129,12 +129,21 @@ void MandelbrotViewer::generate() {
 //this is a private worker thread function. Each thread picks the next ungenerated
 //row of pixels, generates it, then starts the next one
 void MandelbrotViewer::genLine() {
-
-    int iter, row, column;
+#ifdef USE_SIMD_ALGORITHM
+    v2si iter;
+#else
+    int iter;
+#endif
+    int row, column;
     double x, y;
     double x_inc = interpolate(area.width, resolution);
     double y_inc = interpolate(area.height, resolution);
     sf::Color color;
+
+    //this line stores all the calculated colors for
+    //std::vector<sf::Color> line;
+    std::vector<int> lineIters(resolution);
+    std::vector<sf::Color> lineColors(resolution);
 
     while(true) {
 
@@ -152,7 +161,35 @@ void MandelbrotViewer::genLine() {
         y = area.top + row * y_inc;
 
         //now loop through and generate all the pixels in that row
+#ifdef USE_SIMD_ALGORITHM
+        for (column = 0; column < resolution; column+=2) {
+#else
         for (column = 0; column < resolution; column++) {
+#endif
+
+            //check if we already know that that point escapes.
+            //if it's regenerating after a max_iter change, this saves
+            //a lot of time. It's disabled for now (TODO)
+            //if (escape_array[row][column] == false) {
+            //if (image_array[row][column] != max_iter) {
+
+            //calculate the next x coordinate of the complex plane
+            x = area.left + column * x_inc;
+#ifdef USE_SIMD_ALGORITHM
+            iter = escape(x, y, x+x_inc);
+#else
+            iter = escape(x, y);
+#endif
+
+            //mutex this too so that the image is not accessed multiple times simultaneously
+#ifdef USE_SIMD_ALGORITHM
+            lineIters[column] = iter[0];
+            lineColors[column] = findColor(iter[0]);
+            lineIters[column+1] = iter[1];
+            lineColors[column+1] = findColor(iter[1]);
+#else
+            lineIters[column] = iter;
+            lineColors[column] = findColor(iter);
 
             // Check if we increased iterations and if the pixel already diverged
             if ( last_max_iter < max_iter && image_array[row][column] < last_max_iter ) {
@@ -168,11 +205,18 @@ void MandelbrotViewer::genLine() {
             }
 
             //mutex this too so that the image is not accessed multiple times simultaneously
-            mutex2.lock();
+            /*mutex2.lock();
             image.setPixel(column, row, findColor(iter));
             image_array[row][column] = iter;
-            mutex2.unlock();
+            mutex2.unlock();*/
+#endif
         }
+		mutex2.lock();
+		for (column = 0; column < resolution; column++) {
+            image.setPixel(column, row, lineColors[column]);
+            image_array[row][column] = lineIters[column];
+		}
+		mutex2.unlock();
     }
 }
 
@@ -240,42 +284,68 @@ sf::Vector2<double> MandelbrotViewer::pixelToComplex(sf::Vector2f pix) {
 //this function calculates the escape-time of the given coordinate
 //it is the brain of the mandelbrot program: it does the work to
 //make the pretty pictures :)
-int MandelbrotViewer::escape(double x0, double y0) {
-    double x = 0, y = 0, x_check = 0, y_check = 0;
-    int iter = 0, period = 2;
+#ifdef USE_SIMD_ALGORITHM
+v2si MandelbrotViewer::escape(double x0, double y0, double x1) {
+    int iter = 0;
 
-    double x_square = 0;
-    double y_square = 0;
+    v2df x;
+    x[0] = x0;
+    x[1] = x1;
+    v2df y;
+    y[0] = y0;
+    y[1] = y0;
 
-    //this is a specialized version of z = z^2 + c. It only does three multiplications,
-    //instead of the normal six. Multplications are very costly with such high precision
-    while(period < max_iter) {
-        x_check = x;
-        y_check = y;
-        period += period;
+    v2df x2 = __builtin_ia32_mulpd(x, x);
+    v2df y2 = __builtin_ia32_mulpd(y, y);
 
-        if (period > max_iter) period = max_iter;
-        for (; iter < period; iter++) {
-            y = x * y;
-            y += y; //multiply by two
-            y += y0;
-            x = x_square - y_square + x0;
+    v2df x_off;
+    x_off[0] = x0;
+    x_off[1] = x1;
 
-            x_square = x*x;
-            y_square = y*y;
+    int iter0 = -1;
+    int iter1 = -1;
+    v2df four;
+    four[0] = four[1] = 4.0;
 
-            //if the magnitued is greater than 2, it will escape
-            if (x_square + y_square > 4.0) return iter;
+    for (; iter < max_iter && (iter0<0 || iter1<0); ++iter) {
+        v2df tmp = 2.0 * x * y + y0;
+        x = x2 - y2 + x_off;
+        y = tmp;
+        y2 = tmp*tmp;
+        x2 = x*x;
 
-            //another optimization: it checks if the new 'z' is a repeat. If so,
-            //it knows that it is in a loop and will not escape
-            if ((x == x_check) && (y == y_check)){
-                return max_iter;
-            }
+        v2df res = __builtin_ia32_cmpgtpd(x2+y2, four);
+        if (iter0 == -1 && isnan(res[0])) {
+            iter0 = iter+1;
+        }
+        if (iter1 == -1 && isnan(res[1])) {
+            iter1 = iter+1;
         }
     }
-    return max_iter;
+    if (iter0 == -1) iter0 = max_iter;
+    if (iter1 == -1) iter1 = max_iter;
+    v2si res;
+    res[0] = iter0;
+    res[1] = iter1;
+    return res;
 }
+#else
+int MandelbrotViewer::escape(double x0, double y0) {
+    int iter;
+    double x = x0;
+    double y = y0;
+    double x2 = x*x;
+    double y2 = y*y;
+    for (iter=max_iter; iter > 0 && (x2+y2 < 4.0); --iter) {
+        double tmp = 2.0 * x * y + y0;
+        x = x2 - y2 + x0;
+        y = tmp;
+        y2 = tmp*tmp;
+        x2 = x*x;
+    }
+    return iter;
+}
+#endif
 
 //findColor uses the number of iterations passed to it to look up a color in the palette
 sf::Color MandelbrotViewer::findColor(int iter) {

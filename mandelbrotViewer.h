@@ -10,6 +10,11 @@ struct Color {
     int b;
 };
 
+#ifdef USE_SIMD_ALGORITHM
+typedef double v2df __attribute__ ((vector_size (16)));
+typedef int v2si __attribute__ ((vector_size (8)));
+#endif
+
 class MandelbrotViewer {
     public:
         //This constructor creates a new viewer with specified resolution
@@ -92,7 +97,11 @@ class MandelbrotViewer {
         double interpolate(double length, int range) {return length/range;}
 
         //escape calculates the escape-time of given point of the mandelbrot
+#ifdef USE_SIMD_ALGORITHM
+        v2si escape(double x, double y, double x1);
+#else
         int escape(double x, double y);
+#endif
 
         //genLine is a function for worker threads: it generates the next line of the
         //mandelbrot, then moves onto the next, until the entire mandelbrot is generated
