@@ -10,6 +10,7 @@ sf::Mutex mutex2;
 //Constructor
 MandelbrotViewer::MandelbrotViewer(int res) {
     resolution = res;
+    height = width = res;
 
     //create the window and view, then give them to the pointers
     static sf::RenderWindow win(sf::VideoMode(resolution, resolution), "Mandelbrot Explorer");
@@ -101,6 +102,32 @@ void MandelbrotViewer::changePosView(sf::Vector2f new_center, double zoom_factor
     window->setView(*view);
 }
 
+// Resize window event
+void MandelbrotViewer::resizeWindow(int newHeight, int newWidth) {
+    // Getting the center
+    sf::Vector2f center = getMandelbrotCenter();
+
+    // Getting the delta width
+    int deltaWidth  = newWidth  - width,
+        deltaHeight = newHeight - height;
+    width = newWidth;
+    height = newHeight;
+
+    // Changing the corner data
+    sf::Vector2f cornerDelta;
+    cornerDelta.x = deltaWidth;
+    cornerDelta.y = deltaHeight;
+    sf::Vector2<double> complexDelta = pixelToComplex(cornerDelta);
+    area.top -= complexDelta.x;
+    area.left -= complexDelta.y;
+    // Changing the size data
+    sf::Vector2f sizeDelta;
+    sizeDelta.x = width;
+    sizeDelta.y = height;
+    complexDelta = pixelToComplex(sizeDelta);
+    area.width = complexDelta.x;
+    area.height= complexDelta.y;
+}
 
 //generate the mandelbrot
 void MandelbrotViewer::generate() {
