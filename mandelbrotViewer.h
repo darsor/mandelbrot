@@ -30,7 +30,7 @@ class MandelbrotViewer {
         void setIterations(int iter) {last_max_iter = max_iter; max_iter = iter;}
         void setColorMultiple(double mult) {color_multiple = mult;}
         void setFramerate(int rate) {framerateLimit = rate;}
-        void setColorScheme(int newScheme) {scheme = newScheme; initPalette();}
+        void setColorScheme(int newScheme);
         
         //Functions to change parameters for mandelbrot generation:
         void changeColor();

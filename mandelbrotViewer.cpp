@@ -66,6 +66,16 @@ bool MandelbrotViewer::isOpen() {
     return window->isOpen();
 }
 
+//this is a setter function to change the color scheme
+//it also handles all the regeneration and refreshing
+void MandelbrotViewer::setColorScheme(int newScheme) {
+    scheme = newScheme;
+    initPalette();
+    changeColor();
+    updateMandelbrot();
+    refreshWindow();
+}
+
 //Functions to change parameters of mandelbrot
 
 //regenerates the image with the new color multiplier, without regenerating
