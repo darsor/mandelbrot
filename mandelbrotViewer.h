@@ -36,6 +36,9 @@ class MandelbrotViewer {
         void changeColor();
         void changePos(sf::Vector2<double> new_center, double zoom_factor);
         void changePosView(sf::Vector2f new_center, double zoom_factor);
+        
+        // Handle resizing
+        void resizeWindow(int newHeight, int newWidth);
 
         //Functions ot generate the mandelbrot:
         void generate();
@@ -57,6 +60,8 @@ class MandelbrotViewer {
 
     private:
         int resolution;
+        int height;
+        int width;
         int framerateLimit;
         int nextLine;
 

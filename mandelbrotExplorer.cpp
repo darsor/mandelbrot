@@ -21,6 +21,7 @@ double interpolate(double min, double max, int range) { return (max-min)/range; 
 void handleKeyboard(MandelbrotViewer *brot, sf::Event *event);
 void handleZoom(MandelbrotViewer *brot, sf::Event *event);
 void handleDrag(MandelbrotViewer *brot, sf::Event *event);
+void handleResize(MandelbrotViewer *brot, sf::Event *event);
 void zoom();
 
 int main() {
@@ -62,6 +63,11 @@ int main() {
             //if the event is a click, drag the view:
             case sf::Event::MouseButtonPressed:
                 handleDrag(&brot, &event);
+                break;
+
+            //if the event is a window resize, resize
+            case sf::Event::Resized:
+                handleResize(&brot, &event);
                 break;
 
             default:
@@ -291,6 +297,16 @@ void handleDrag(MandelbrotViewer *brot, sf::Event *event) {
     new_center = old_center - difference;
 
     brot->changePos(brot->pixelToComplex(new_center), 1.0);
+    brot->generate();
+    brot->resetView();
+    brot->updateMandelbrot();
+    brot->refreshWindow();
+}
+
+void handleResize(MandelbrotViewer *brot, sf::Event *event) {
+    int newX = event->size.width,
+        newY = event->size.height;
+    brot->resizeWindow(newX, newY);
     brot->generate();
     brot->resetView();
     brot->updateMandelbrot();
