@@ -18,6 +18,8 @@ MandelbrotViewer::MandelbrotViewer(int resX, int resY) {
     res_width = resX;
     res_height = resY;
 
+    mpf_set_default_prec(32);
+
     //create the window and view, then give them to the pointers
     static sf::RenderWindow win(sf::VideoMode(res_width, res_height), "Mandelbrot Explorer");
     static sf::View vw(sf::FloatRect(0, 0, res_width, res_height));
@@ -455,33 +457,41 @@ int MandelbrotViewer::escape(int row, int column) {
         return image_array[row][column];
     //if not, use the escape-time algorithm to calculate iter
     else {
-        //convert from pixel to complex coordinates
-        sf::Vector2f pnt(column, row);
-        sf::Vector2<double> point = pixelToComplex(pnt);
-        //        printf("Point: (%-2.10f,%-2.10f)\t",point.x,point.y);
+        //convert from pixel to complex coordinates 
+        mpf_t cpx_x, cpx_y; // TODO: can this be streamlined by simply adding area_inc each time it loops through columns?
+        mpf_inits(cpx_x, cpx_y);
+        mpf_mul_ui(cpx_x, area_inc, column);
+        mpf_mul_ui(cpx_y, area_inc, row);
+        mpf_add(cpx_x, cpx_x, area.left);
+        mpf_add(cpx_y, cpx_y, area.top); // TODO: untested
 
         //rotate the point
         if (rotation) point = rotate(point);
 
-        double x = 0, y = 0;
-        int iter = 0;
+        mpf_t x, y;
+        mpf_inits(x, y);
+        unsigned int iter = 0;
 
-        double x_square = 0;
-        double y_square = 0;
+        mpf_t x_square, y_square, magnitude;
+        mpf_init_set_ui(x_square, 0);
+        mpf_init_set_ui(y_square, 0);
+        mpf_init_set_ui(magnitude, 0);
 
         //this is a specialized version of z = z^2 + c. It only does three multiplications,
         //instead of the normal six. Multplications are very costly with such high precision
         for (; iter < max_iter; iter++) {
-            y = x * y;
-            y += y; //multiply by two
-            y += point.y;
-            x = x_square - y_square + point.x;
+            mpf_mul(y, x, y);       // y = x * y;
+            mpf_add(y, y, y);       // y += y;
+            mpf_add(y, y, cpx_y);   // y += cpx_y;
+            mpf_add(x, x_square, cpx_x); // x = x_square - y_square + cpx_x;
+            mpf_sub(x, x, y_square);
 
-            x_square = x*x;
-            y_square = y*y;
+            mpf_mul(x_square, x, x); // x_square = x*x;
+            mpf_mul(y_square, y, y); // y_square = y*y;
 
             //if the magnitude is greater than 2, it will escape
-            if (x_square + y_square > 4.0) return iter;
+            mpf_add(magnitude, x_square, y_square); // magnitude = x_square + y_square
+            if (mpf_cmp_ui(magnitude, 4) > 0) return iter; // if magnitude < 4.0
         }
     }
     return max_iter;

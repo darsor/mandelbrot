@@ -2,6 +2,7 @@
 #define MANDELBROTVIEWER_H
 
 #include <SFML/Graphics.hpp>
+#include <gmp.h>
 #include <vector>
 
 struct Color {
@@ -88,8 +89,8 @@ class MandelbrotViewer {
         bool restart_gen; //set to true to stop generation before it's finished
 
         //this is the area of the complex plane to generate
-        sf::Rect<double> area;
-        double area_inc; //this is complex plane area per pixel
+        sf::Rect<mpf_t> area;
+        mpf_t area_inc; //this is complex plane area per pixel
 
         //this is the current rotation of the mandelbrot - 0 radians is positive x axis
         double rotation;
