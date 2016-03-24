@@ -36,6 +36,7 @@ MandelbrotViewer::MandelbrotViewer(int resX, int resY) {
     texture.create(res_width, res_height);
     image.create(res_width, res_height, sf::Color::White);
     sprite.setTexture(texture);
+    oversampling = 4;
     scheme = 1;
     
     //initialize the color palette
@@ -60,9 +61,7 @@ MandelbrotViewer::MandelbrotViewer(int resX, int resY) {
     image_array = array;
 
     //get the number of supported concurrent threads
-    // TODO change this back
-    //max_threads = std::thread::hardware_concurrency();
-    max_threads = 1;
+    max_threads = std::thread::hardware_concurrency();
 
     //disable repeated keys
     //window->setKeyRepeatEnabled(false);
@@ -188,6 +187,7 @@ void MandelbrotViewer::changePos(sf::Vector2<double> new_center, double zoom_fac
     area.left = new_center.x - area.width / 2.0;
     area.top = new_center.y - area.height / 2.0;
     area_inc = area.width/res_width;
+    oversampling_inc = area_inc/oversampling;
     //NOTE: this is a relative zoom
 }
 
@@ -218,6 +218,7 @@ void MandelbrotViewer::resizeWindow(int new_x, int new_y) {
     area.left = center_x - area.width/2.0;
     area.top = center_y - area.height/2.0;
     area_inc = area.width/res_width;
+    oversampling_inc = area_inc/oversampling;
 
     //resize the image, texture, and sprite
     image.create(res_width, res_height, sf::Color::Black);
@@ -308,6 +309,7 @@ void MandelbrotViewer::resetMandelbrot() {
     area_inc = area.height/res_height;
     area.width = area_inc * res_width;
     area.left = -0.5 - area.width/2.0;
+    oversampling_inc = area_inc/oversampling;
 
     max_iter = 100;
     last_max_iter = 100;
@@ -457,34 +459,48 @@ int MandelbrotViewer::escape(int row, int column) {
     else {
         //convert from pixel to complex coordinates
         sf::Vector2f pnt(column, row);
-        sf::Vector2<double> point = pixelToComplex(pnt);
-        //        printf("Point: (%-2.10f,%-2.10f)\t",point.x,point.y);
-
-        //rotate the point
-        if (rotation) point = rotate(point);
+        sf::Vector2<double> complex_pnt = pixelToComplex(pnt);
+        sf::Vector2<double> point = complex_pnt;
+        //printf("Point: (%-2.10f,%-2.10f)\t",point.x,point.y);
 
         double x = 0, y = 0;
-        int iter = 0;
+        unsigned int iter = 0;
+        unsigned int total_iter = 0;
 
         double x_square = 0;
         double y_square = 0;
 
-        //this is a specialized version of z = z^2 + c. It only does three multiplications,
-        //instead of the normal six. Multplications are very costly with such high precision
-        for (; iter < max_iter; iter++) {
-            y = x * y;
-            y += y; //multiply by two
-            y += point.y;
-            x = x_square - y_square + point.x;
+        for (int i=0; i<oversampling; i++) {
+            for (int j=0; j<oversampling; j++) {
+                point.x = complex_pnt.x + j*oversampling_inc;
+                point.y = complex_pnt.y + i*oversampling_inc;
 
-            x_square = x*x;
-            y_square = y*y;
+                //rotate the point
+                if (rotation) point = rotate(point);
 
-            //if the magnitude is greater than 2, it will escape
-            if (x_square + y_square > 4.0) return iter;
+                //this is a specialized version of z = z^2 + c. It only does three multiplications,
+                //instead of the normal six. Multplications are very costly with such high precision
+                iter = x = y = x_square = y_square = 0;
+                for (; iter < max_iter; iter++) {
+                    y = x * y;
+                    y += y; //multiply by two
+                    y += point.y;
+                    x = x_square - y_square + point.x;
+
+                    x_square = x*x;
+                    y_square = y*y;
+
+                    //if the magnitude is greater than 2, it will escape
+                    if (x_square + y_square > 4.0) {
+                        total_iter += iter;
+                        break;
+                    }
+                }
+                if (iter == max_iter) total_iter += max_iter;
+            }
         }
+        return total_iter/(oversampling * oversampling);
     }
-    return max_iter;
 }
 
 //findColor uses the number of iterations passed to it to look up a color in the palette

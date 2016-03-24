@@ -90,11 +90,13 @@ class MandelbrotViewer {
         //this is the area of the complex plane to generate
         sf::Rect<double> area;
         double area_inc; //this is complex plane area per pixel
+        double oversampling_inc;
 
         //this is the current rotation of the mandelbrot - 0 radians is positive x axis
         double rotation;
         
         //this changes how the colors are displayed
+        int oversampling;
         double color_multiple;
         bool color_locked;
         int scheme;
