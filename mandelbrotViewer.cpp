@@ -60,9 +60,7 @@ MandelbrotViewer::MandelbrotViewer(int resX, int resY) {
     image_array = array;
 
     //get the number of supported concurrent threads
-    // TODO change this back
-    //max_threads = std::thread::hardware_concurrency();
-    max_threads = 1;
+    max_threads = std::thread::hardware_concurrency();
 
     //disable repeated keys
     //window->setKeyRepeatEnabled(false);
@@ -276,7 +274,7 @@ void MandelbrotViewer::genLine() {
     double y_inc = interpolate(area.height, res_height);
     sf::Color color;
 
-    while(true) {
+    while(!restart_gen) {
 
         //the mutex avoids multiple threads writing to variables at the same time,
         //which can corrupt the data
