@@ -14,11 +14,11 @@ sf::Mutex mutex1;
 sf::Mutex mutex2;
 
 //Constructor
-MandelbrotViewer::MandelbrotViewer(int resX, int resY) {
+MandelbrotViewer::MandelbrotViewer(unsigned int resX, unsigned int resY) {
     res_width = resX;
     res_height = resY;
 
-    mpf_set_default_prec(32);
+    mpreal::set_default_prec(64);
 
     //create the window and view, then give them to the pointers
     static sf::RenderWindow win(sf::VideoMode(res_width, res_height), "Mandelbrot Explorer");
@@ -58,13 +58,11 @@ MandelbrotViewer::MandelbrotViewer(int resX, int resY) {
     //initialize the image_array
     size_t sizeX = res_width;
     size_t sizeY = res_height;
-    std::vector< std::vector<int> > array(sizeY, std::vector<int>(sizeX));
+    std::vector< std::vector<unsigned int> > array(sizeY, std::vector<unsigned int>(sizeX));
     image_array = array;
 
     //get the number of supported concurrent threads
-    // TODO change this back
-    //max_threads = std::thread::hardware_concurrency();
-    max_threads = 1;
+    max_threads = std::thread::hardware_concurrency();
 
     //disable repeated keys
     //window->setKeyRepeatEnabled(false);
@@ -90,8 +88,8 @@ sf::Vector2i MandelbrotViewer::getMousePosition() {
 }
 
 //return the center of the area of the complex plane
-sf::Vector2f MandelbrotViewer::getMandelbrotCenter() {
-    sf::Vector2f center;
+sf::Vector2<mpreal> MandelbrotViewer::getMandelbrotCenter() {
+    sf::Vector2<mpreal> center;
     center.x = area.left + area.width/2.0;
     center.y = area.top + area.height/2.0;
     return center;
@@ -171,8 +169,8 @@ void MandelbrotViewer::lockColor() {
 //regenerates the image with the new color multiplier, without regenerating
 //the mandelbrot. Does not update the image (use updateImage())
 void MandelbrotViewer::changeColor() {
-    for (int i=0; i<res_height; i++) {
-        for (int j=0; j<res_width; j++) {
+    for (unsigned int i=0; i<res_height; i++) {
+        for (unsigned int j=0; j<res_width; j++) {
             image.setPixel(j, i, findColor(image_array[i][j]));
         }
     }
@@ -180,10 +178,11 @@ void MandelbrotViewer::changeColor() {
 
 //changes the parameters of the mandelbrot: sets new center and zooms accordingly
 //does not regenerate or update the image
-void MandelbrotViewer::changePos(sf::Vector2<double> new_center, double zoom_factor) {
+void MandelbrotViewer::changePos(sf::Vector2f center, double zoom_factor) {
 
-    //rotate the mouse input first
-    new_center = rotate(new_center);
+    //convert to complex coordinates, then rotate
+    sf::Vector2<mpreal> new_center = pixelToComplex(center);
+    if (rotation) new_center = rotate(new_center);
 
     area.width = area.width * zoom_factor;
     area.height = area.height * zoom_factor;
@@ -208,8 +207,8 @@ void MandelbrotViewer::changePosView(sf::Vector2f new_center, double zoom_factor
 void MandelbrotViewer::resizeWindow(int new_x, int new_y) {
 
     //save the old center and resolution
-    double center_x = area.left + area.width/2.0;
-    double center_y = area.top + area.height/2.0;
+    mpreal center_x = area.left + area.width/2.0;
+    mpreal center_y = area.top + area.height/2.0;
 
     res_width = new_x;
     res_height = new_y;
@@ -230,7 +229,7 @@ void MandelbrotViewer::resizeWindow(int new_x, int new_y) {
     //resize the image_array
     size_t sizeX = res_width;
     size_t sizeY = res_height;
-    std::vector< std::vector<int> > array(sizeY, std::vector<int>(sizeX));
+    std::vector< std::vector<unsigned int> > array(sizeY, std::vector<unsigned int>(sizeX));
     image_array = array;
 
     resetView();
@@ -248,12 +247,12 @@ void MandelbrotViewer::generate() {
 
         //create and launch the thread pool
         std::vector<std::thread> threadPool;
-        for (int i=0; i<max_threads; i++) {
+        for (unsigned int i=0; i<max_threads; i++) {
             threadPool.push_back(std::thread(&MandelbrotViewer::genLine, this));
         }
 
         //wait for the threads to finish
-        for (int i=0; i<max_threads; i++) {
+        for (unsigned int i=0; i<max_threads; i++) {
             threadPool[i].join();
         }
 
@@ -272,11 +271,8 @@ void MandelbrotViewer::generate() {
 //row of pixels, generates it, then starts the next one
 void MandelbrotViewer::genLine() {
 
-    int iter, row, column;
-    sf::Vector2<double> point;
-    double x_inc = interpolate(area.width, res_width);
-    double y_inc = interpolate(area.height, res_height);
-    sf::Color color;
+    unsigned int iter, row, column;
+    mpreal::set_default_prec(2048);
 
     while(true) {
 
@@ -399,7 +395,8 @@ void MandelbrotViewer::enableOverlay(bool enable) {
         ss << "x: " << std::setw(23) << area.left << "  y: " << std::setw(23) << area.top << "\n";
         ss << "   " << std::setw(23) << area.left + area.width << "     " << std::setw(23) << area.top + area.height;
         ss << std::defaultfloat;
-        int zoom_level = log2(2.0/area.width);
+        mpreal zoom_lvl = log2(2.0/area.width);
+        unsigned int zoom_level = zoom_lvl.toULong();
         ss << "\n\nZoom level: " << zoom_level;
         if (color_locked)
             ss << "\t\t\t\t\tColor is locked";
@@ -437,8 +434,8 @@ void MandelbrotViewer::rotateView(float angle) {
 
 //Converts a vector from pixel coordinates to the corresponding
 //coordinates on the complex plane
-sf::Vector2<double> MandelbrotViewer::pixelToComplex(sf::Vector2f pix) {
-    sf::Vector2<double> comp;
+sf::Vector2<mpreal> MandelbrotViewer::pixelToComplex(sf::Vector2f pix) {
+    sf::Vector2<mpreal> comp;
     comp.x = area.left + pix.x * area_inc;
     comp.y = area.top + pix.y * area_inc;
     return comp;
@@ -457,49 +454,42 @@ int MandelbrotViewer::escape(int row, int column) {
         return image_array[row][column];
     //if not, use the escape-time algorithm to calculate iter
     else {
-        //convert from pixel to complex coordinates 
-        mpf_t cpx_x, cpx_y; // TODO: can this be streamlined by simply adding area_inc each time it loops through columns?
-        mpf_inits(cpx_x, cpx_y);
-        mpf_mul_ui(cpx_x, area_inc, column);
-        mpf_mul_ui(cpx_y, area_inc, row);
-        mpf_add(cpx_x, cpx_x, area.left);
-        mpf_add(cpx_y, cpx_y, area.top); // TODO: untested
+        //convert from pixel to complex coordinates
+        sf::Vector2f pnt(column, row);
+        sf::Vector2<mpreal> point = pixelToComplex(pnt);
+        //        printf("Point: (%-2.10f,%-2.10f)\t",point.x,point.y);
+        //std::cout << point.x << ",      " << point.y << std::endl;
 
         //rotate the point
         if (rotation) point = rotate(point);
 
-        mpf_t x, y;
-        mpf_inits(x, y);
+        mpreal x = 0, y = 0;
         unsigned int iter = 0;
 
-        mpf_t x_square, y_square, magnitude;
-        mpf_init_set_ui(x_square, 0);
-        mpf_init_set_ui(y_square, 0);
-        mpf_init_set_ui(magnitude, 0);
+        mpreal x_square = 0;
+        mpreal y_square = 0;
 
         //this is a specialized version of z = z^2 + c. It only does three multiplications,
         //instead of the normal six. Multplications are very costly with such high precision
         for (; iter < max_iter; iter++) {
-            mpf_mul(y, x, y);       // y = x * y;
-            mpf_add(y, y, y);       // y += y;
-            mpf_add(y, y, cpx_y);   // y += cpx_y;
-            mpf_add(x, x_square, cpx_x); // x = x_square - y_square + cpx_x;
-            mpf_sub(x, x, y_square);
+            y = x * y;
+            y += y; //multiply by two
+            y += point.y;
+            x = x_square - y_square + point.x;
 
-            mpf_mul(x_square, x, x); // x_square = x*x;
-            mpf_mul(y_square, y, y); // y_square = y*y;
+            x_square = x*x;
+            y_square = y*y;
 
             //if the magnitude is greater than 2, it will escape
-            mpf_add(magnitude, x_square, y_square); // magnitude = x_square + y_square
-            if (mpf_cmp_ui(magnitude, 4) > 0) return iter; // if magnitude < 4.0
+            if (x_square + y_square > 4.0) return iter;
         }
     }
     return max_iter;
 }
 
 //findColor uses the number of iterations passed to it to look up a color in the palette
-sf::Color MandelbrotViewer::findColor(int iter) {
-    int i = (int) fmod(iter * color_multiple, palette[0].size());
+sf::Color MandelbrotViewer::findColor(unsigned int iter) {
+    unsigned int i = (unsigned int) fmod(iter * color_multiple, palette[0].size());
     sf::Color color;
     if (iter >= max_iter) color = sf::Color::Black;
     else if (iter == 0) {
@@ -514,12 +504,12 @@ sf::Color MandelbrotViewer::findColor(int iter) {
 
 //this function handles rotation - it takes in a complex point with zero rotation
 //and returns where that point is when rotated
-sf::Vector2<double> MandelbrotViewer::rotate(sf::Vector2<double> rect) {
+sf::Vector2<mpreal> MandelbrotViewer::rotate(sf::Vector2<mpreal> rect) {
 
     //get some vectors ready
-    sf::Vector2<double> polar;
-    sf::Vector2<double> difference;
-    sf::Vector2<double> center;
+    sf::Vector2<mpreal> polar;
+    sf::Vector2<mpreal> difference;
+    sf::Vector2<mpreal> center;
 
     //the function needs to use the given rectangular coordinates to generate a new vector
     //with the origin at the current center of the complex plane, convert that vector to
@@ -546,6 +536,21 @@ sf::Vector2<double> MandelbrotViewer::rotate(sf::Vector2<double> rect) {
     //now put the center back where it belongs
     rect = center + difference;
 
+    return rect;
+}
+sf::Vector2f MandelbrotViewer::rotate(sf::Vector2f rect) {
+    sf::Vector2f polar;
+    sf::Vector2f difference;
+    sf::Vector2f center;
+    center.x = res_width/2.0;
+    center.y = res_height/2.0;
+    difference = rect - center;
+    polar.x = hypot(difference.x, difference.y);
+    polar.y = atan2(difference.y, difference.x);
+    polar.y += rotation;
+    difference.x = polar.x * cos(polar.y);
+    difference.y = polar.x * sin(polar.y);
+    rect = center + difference;
     return rect;
 }
 

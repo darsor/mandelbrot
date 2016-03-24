@@ -34,7 +34,7 @@ void zoom();
 int main() {
     
     //create the mandelbrotviewer instance
-    MandelbrotViewer brot(820, 820);
+    MandelbrotViewer brot(200, 200);
 
     //initialize the image
     brot.resetMandelbrot();
@@ -45,9 +45,6 @@ int main() {
     //point the zoom function to the 'brot' instance
     param.brot = &brot;
     param.done = true;
-
-    //create an event to test for input
-    sf::Event event;
 
     //main window loop
     while (brot.isOpen()) {
@@ -241,11 +238,11 @@ void handleZoom(MandelbrotViewer *brot, sf::Event *event){
 
     //if it's an upward scroll, get ready to zoom in
     if (event->mouseWheelScroll.delta > 0) {
-        brot->changePos(brot->pixelToComplex(new_center), 0.5);
+        brot->changePos(new_center, 0.5);
         param.zoom = 0.5;
     } //if it's a downward scroll, get ready to zoom out
     else if (event->mouseWheelScroll.delta < 0) {
-        brot->changePos(brot->pixelToComplex(new_center), 2.0);
+        brot->changePos(new_center, 2.0);
         param.zoom = 2.0;
     }
 
@@ -348,7 +345,7 @@ void handleDrag(MandelbrotViewer *brot, sf::Event *event) {
     //calculate the new center
     new_center = old_center - difference;
 
-    brot->changePos(brot->pixelToComplex(new_center), 1.0);
+    brot->changePos(new_center, 1.0);
     brot->generate();
     brot->resetView();
     brot->updateMandelbrot();

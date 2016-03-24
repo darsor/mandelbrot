@@ -2,8 +2,10 @@
 #define MANDELBROTVIEWER_H
 
 #include <SFML/Graphics.hpp>
-#include <gmp.h>
+#include <mpreal.h>
 #include <vector>
+
+using mpfr::mpreal;    
 
 struct Color {
     int r;
@@ -14,7 +16,7 @@ struct Color {
 class MandelbrotViewer {
     public:
         //This constructor creates a new viewer with specified resolution
-        MandelbrotViewer(int res_x, int res_y);
+        MandelbrotViewer(unsigned int res_x, unsigned int res_y);
         ~MandelbrotViewer();
 
         //Accesor functions:
@@ -26,7 +28,7 @@ class MandelbrotViewer {
         double getColorMultiple() {return color_multiple;}
         sf::Vector2i getMousePosition();
         sf::Vector2f getViewCenter() {return view->getCenter();}
-        sf::Vector2f getMandelbrotCenter();
+        sf::Vector2<mpreal> getMandelbrotCenter();
         bool waitEvent(sf::Event&);
         bool pollEvent(sf::Event&);
         bool isColorLocked() {return color_locked;}
@@ -45,7 +47,7 @@ class MandelbrotViewer {
         
         //Functions to change parameters for mandelbrot generation:
         void changeColor();
-        void changePos(sf::Vector2<double> new_center, double zoom_factor);
+        void changePos(sf::Vector2f new_center, double zoom_factor);
         void changePosView(sf::Vector2f new_center, double zoom_factor);
         void resizeWindow(int newX, int newY);
 
@@ -67,13 +69,13 @@ class MandelbrotViewer {
 
         //Converts a vector from pixel coordinates to the corresponding
         //coordinates of the complex plane
-        sf::Vector2<double> pixelToComplex(sf::Vector2f);
+        sf::Vector2<mpreal> pixelToComplex(sf::Vector2f);
 
     private:
-        int res_height;
-        int res_width;
-        int framerateLimit;
-        int nextLine;
+        unsigned int res_height;
+        unsigned int res_width;
+        unsigned int framerateLimit;
+        unsigned int nextLine;
 
         sf::Sprite sprite;
         sf::Image image;
@@ -89,8 +91,8 @@ class MandelbrotViewer {
         bool restart_gen; //set to true to stop generation before it's finished
 
         //this is the area of the complex plane to generate
-        sf::Rect<mpf_t> area;
-        mpf_t area_inc; //this is complex plane area per pixel
+        sf::Rect<mpreal> area;
+        mpreal area_inc; //this is complex plane area per pixel
 
         //this is the current rotation of the mandelbrot - 0 radians is positive x axis
         double rotation;
@@ -104,7 +106,7 @@ class MandelbrotViewer {
         unsigned int max_threads;
 
         //this array stores the number of iterations for each pixel
-        std::vector< std::vector<int> > image_array;
+        std::vector< std::vector<unsigned int> > image_array;
 
         //maximum number of iterations to check for. Higher values are slower,
         //but more precise
@@ -126,11 +128,12 @@ class MandelbrotViewer {
         void genLine();
 
         //this looks up a color to print according to the escape value given
-        sf::Color findColor(int iter);
+        sf::Color findColor(unsigned int iter);
 
         //this function handles rotation - it takes in a complex point with zero rotation
         //and returns where that point is when rotated
-        sf::Vector2<double> rotate(sf::Vector2<double>);
+        sf::Vector2<mpreal> rotate(sf::Vector2<mpreal>);
+        sf::Vector2f rotate(sf::Vector2f);
 
         //initialize the color palette. Having a palette helps avoid regenerating the
         //color scheme each time it is needed
