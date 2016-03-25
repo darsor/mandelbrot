@@ -219,6 +219,25 @@ void handleKeyboard(MandelbrotViewer *brot, sf::Event *event) {
         case sf::Keyboard::Home:
             brot->setRotation(0);
             break;
+        //if Plus, increase oversampling level
+        case sf::Keyboard::Equal:
+            brot->setOversampling(brot->getOversampling()+1);
+            if (param.done) {
+                handleGenerate();
+                brot->updateMandelbrot();
+                brot->refreshWindow();
+            }
+            break;
+        //if Minus, decrease oversampling level
+        case sf::Keyboard::Dash:
+            if (brot->getOversampling() > 1) 
+                brot->setOversampling(brot->getOversampling()-1);
+            if (param.done) {
+                handleGenerate();
+                brot->updateMandelbrot();
+                brot->refreshWindow();
+            }
+            break;
         //end the keypress switch
         default:
             break;
@@ -429,8 +448,11 @@ void handleGenerate() {
 void eventPoll() {
     while(!param.done) {
         if (param.brot->pollEvent(param.event)) {
-            if (param.event.type == sf::Event::KeyPressed && (param.event.key.code == sf::Keyboard::Up ||
-                        param.event.key.code == sf::Keyboard::Down)) {
+            if (param.event.type == sf::Event::KeyPressed && 
+                    (param.event.key.code == sf::Keyboard::Up    ||
+                     param.event.key.code == sf::Keyboard::Down  ||
+                     param.event.key.code == sf::Keyboard::Equal ||
+                     param.event.key.code == sf::Keyboard::Dash)) {
                 //if input is found:
                 //handle the interrupt,
                 handleEvent();

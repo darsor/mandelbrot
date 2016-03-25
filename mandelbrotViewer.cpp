@@ -36,7 +36,7 @@ MandelbrotViewer::MandelbrotViewer(int resX, int resY) {
     texture.create(res_width, res_height);
     image.create(res_width, res_height, sf::Color::White);
     sprite.setTexture(texture);
-    oversampling = 4;
+    oversampling = 1;
     scheme = 1;
     
     //initialize the color palette
@@ -87,8 +87,8 @@ sf::Vector2i MandelbrotViewer::getMousePosition() {
 }
 
 //return the center of the area of the complex plane
-sf::Vector2f MandelbrotViewer::getMandelbrotCenter() {
-    sf::Vector2f center;
+sf::Vector2<double> MandelbrotViewer::getMandelbrotCenter() {
+    sf::Vector2<double> center;
     center.x = area.left + area.width/2.0;
     center.y = area.top + area.height/2.0;
     return center;
@@ -239,7 +239,7 @@ void MandelbrotViewer::resizeWindow(int new_x, int new_y) {
 void MandelbrotViewer::generate() {
 
     bool done = false;
-    restart_gen = false;
+    restart_gen.store(false);
 
     while (!done) {
         //make sure it starts at line 0
@@ -257,9 +257,9 @@ void MandelbrotViewer::generate() {
         }
 
         //when the threads finish prematurely, reset needed variables and restart generation
-        if (restart_gen) {
+        if (restart_gen.load()) {
             done = false;
-            restart_gen = false;
+            restart_gen.store(false);
         } else done = true;
     }
 
@@ -277,7 +277,7 @@ void MandelbrotViewer::genLine() {
     double y_inc = interpolate(area.height, res_height);
     sf::Color color;
 
-    while(true) {
+    while(!restart_gen.load()) {
 
         //the mutex avoids multiple threads writing to variables at the same time,
         //which can corrupt the data
@@ -383,8 +383,8 @@ void MandelbrotViewer::enableOverlay(bool enable) {
                         "R                 - Reset\n"
                         "L                 - Lock Colors\n"
                         "Q                 - Quit\n"
-                        "Page up           - Rotate counter-clockwise\n"
-                        "Page down         - Rotate clockwise\n"
+                        "Page up/down      - Rotate\n"
+                        "+/-               - Set oversampling level\n"
                         "Home              - Reset rotation\n"
                         "------------------------------------------------\n");
         controls.setCharacterSize(24);
@@ -395,17 +395,19 @@ void MandelbrotViewer::enableOverlay(bool enable) {
         std::stringstream ss;
         ss << std::fixed << std::setprecision(20);
         ss << "Resolution: " << res_width << "x" << res_height << "\n\n";
-        ss << "Coordinates: \n";
-        ss << "x: " << std::setw(23) << area.left << "  y: " << std::setw(23) << area.top << "\n";
-        ss << "   " << std::setw(23) << area.left + area.width << "     " << std::setw(23) << area.top + area.height;
+        sf::Vector2<double> center = getMandelbrotCenter();
+        ss << "Center: \n" << std::setw(23) << center.x << " + " << center.y << "i\n";
+        ss << "\nOversampling level: " << oversampling << "x" << oversampling << "\n";
         ss << std::defaultfloat;
         int zoom_level = log2(2.0/area.width);
-        ss << "\n\nZoom level: " << zoom_level;
+        ss << "\nZoom level: 2^" << zoom_level;
         if (color_locked)
             ss << "\t\t\t\t\tColor is locked";
         else
             ss << "\t\t\t\t\tColor is unlocked";
 		ss << "\n\nIterations: " << max_iter << std::fixed << std::setprecision(0);
+        ss << "\t\t\t\tColor multiplier: " << std::setprecision(2) << color_multiple;
+        ss << std::defaultfloat;
         ss << "\n\nRotation: " << angle << " degrees";
 
         stats.setFont(font);
@@ -569,7 +571,7 @@ void MandelbrotViewer::initPalette() {
     //define some non-standard colors
     sf::Color orange;
     orange.r = 255;
-    orange.g = 165;
+    orange.g = 136;
     orange.b = 0;
 
     switch (scheme) {

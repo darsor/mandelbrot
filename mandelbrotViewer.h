@@ -2,6 +2,7 @@
 #define MANDELBROTVIEWER_H
 
 #include <SFML/Graphics.hpp>
+#include <atomic>
 #include <vector>
 
 struct Color {
@@ -21,11 +22,12 @@ class MandelbrotViewer {
         int getResHeight() {return res_height;}
         int getFramerate() {return framerateLimit;}
         int getIters() {return max_iter;}
+        int getOversampling() {return oversampling;}
         double getRotation() {return rotation;}
         double getColorMultiple() {return color_multiple;}
         sf::Vector2i getMousePosition();
         sf::Vector2f getViewCenter() {return view->getCenter();}
-        sf::Vector2f getMandelbrotCenter();
+        sf::Vector2<double> getMandelbrotCenter();
         bool waitEvent(sf::Event&);
         bool pollEvent(sf::Event&);
         bool isColorLocked() {return color_locked;}
@@ -39,7 +41,8 @@ class MandelbrotViewer {
         void setFramerate(int rate) {framerateLimit = rate;}
         void setColorScheme(int newScheme);
         void setRotation(double radians);
-        void restartGeneration() {restart_gen = true;}
+        void setOversampling(int sample_level) {oversampling = sample_level; oversampling_inc = area_inc/oversampling;}
+        void restartGeneration() {restart_gen.store(true);}
         void lockColor();
         
         //Functions to change parameters for mandelbrot generation:
@@ -85,7 +88,7 @@ class MandelbrotViewer {
         sf::View *view;
 
         //Parameters to generate the mandelbrot:
-        bool restart_gen; //set to true to stop generation before it's finished
+        std::atomic_bool restart_gen; //set to true to stop generation before it's finished
 
         //this is the area of the complex plane to generate
         sf::Rect<double> area;
