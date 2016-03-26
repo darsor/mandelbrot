@@ -27,7 +27,7 @@ MandelbrotViewer::MandelbrotViewer(int resX, int resY) {
     //initialize the viewport. It should never change
     view->setViewport(sf::FloatRect(0, 0, 1, 1));
     window->setView(*view);
-    
+
     //cap the framerate
     framerateLimit = 60;
     window->setFramerateLimit(framerateLimit);
@@ -38,7 +38,7 @@ MandelbrotViewer::MandelbrotViewer(int resX, int resY) {
     sprite.setTexture(texture);
     oversampling = 1;
     scheme = 1;
-    
+
     //initialize the color palette
     color_locked = false;
     std::vector<int> pal_row(max_iter);
@@ -50,9 +50,9 @@ MandelbrotViewer::MandelbrotViewer(int resX, int resY) {
     resetMandelbrot();
 
     //initialize the font for the overlay
-	if (font.loadFromFile("cour.ttf"));
-	else if (font.loadFromFile("C:\\Windows\\Fonts\\cour.ttf"));
-	else std::cout << "ERROR: unable to load font\n";
+    if (font.loadFromFile("cour.ttf"));
+    else if (font.loadFromFile("C:\\Windows\\Fonts\\cour.ttf"));
+    else std::cout << "ERROR: unable to load font\n";
 
     //initialize the image_array
     size_t sizeX = res_width;
@@ -405,7 +405,7 @@ void MandelbrotViewer::enableOverlay(bool enable) {
             ss << "\t\t\t\t\tColor is locked";
         else
             ss << "\t\t\t\t\tColor is unlocked";
-		ss << "\n\nIterations: " << max_iter << std::fixed << std::setprecision(0);
+        ss << "\n\nIterations: " << max_iter << std::fixed << std::setprecision(0);
         ss << "\t\t\t\tColor multiplier: " << std::setprecision(2) << color_multiple;
         ss << std::defaultfloat;
         ss << "\n\nRotation: " << angle << " degrees";
@@ -452,7 +452,7 @@ sf::Vector2<double> MandelbrotViewer::pixelToComplex(sf::Vector2f pix) {
 int MandelbrotViewer::escape(int row, int column) {
 
     //check if we increased iterations and if the pixel already diverged
-    if (last_max_iter < max_iter && image_array[row][column] < last_max_iter) 
+    if (last_max_iter < max_iter && image_array[row][column] < last_max_iter)
         return image_array[row][column];
     //check if we decreased iterations and if the pixel already converged
     else if (last_max_iter > max_iter && image_array[row][column] > max_iter)
